@@ -1,9 +1,9 @@
 // invoke config to get the environment variables
-require('dotenv').config('.env');
-const cors = require('cors');
-const express = require('express');
-const { auth } = require('express-openid-connect');
-const morgan = require('morgan');
+require("dotenv").config(".env");
+const cors = require("cors");
+const express = require("express");
+const { auth } = require("express-openid-connect");
+const morgan = require("morgan");
 
 // create express app
 const app = express();
@@ -14,36 +14,75 @@ const { PORT = 3000 } = process.env;
 // enable CORS
 app.use(cors());
 // log requests to console
-app.use(morgan('dev'));
+app.use(morgan("dev"));
 // parse request body
 app.use(express.json());
-app.use(express.urlencoded({extended:true}));
+app.use(express.urlencoded({ extended: true }));
+
+// What is OAuth?
+//  OAuth provides secure "delegated" access which means an application can access resources from a server on behalf of the user, without them having to share their credentials.
+
+/* How is Auth0 related to OAuth?
+Auth0 is a company that sells a version of the OAuth framework. 
+ 
+OpenID Connect - deals with Authentication (like .sign) - used to enable user logins on websites and mobile apps 
+OAuth - deals with Authorization (like .verify)g granting access withouthaving to log in on the site itself 
+
+OIDC - Implementing in web apps, it (like all 3rd party servies like Auth0), cna both simplify the user's life and our lives as developers, and also increase security of our application 
+
+User Experience and Flow
+1. request /login
+2. redirect us to the Auth0 application 
+3. we're prompted with user login, or third party apps, like Auth0 or Google 
+4. if we click google we are redirected to Google's authentication server to log in to our Google account and give permission 
+5. once authenticated, Auth0 sends the authorization code to our server 
+
+OIDC Token Usage
+-- access tokens -> tells our API that the user has been authroized access 
+-- ID Tokens -> contains information about the user so the application can customize the experience 
+
 
 /* ************ START OIDC CODE ************ */
 
-// env vars from process.env
+// env vars from process.env in SCREAMING_SNAKE_CASE
+const { AUTH0_SECRET, AUTH0_AUDIENCE, AUTH0_CLIENT_ID, AUTH0_BASE_URL } = process.env;
 
+// define the config object
+const config = {
+  authRequired: false,
+  auth0Logout: true,
+  secret: AUTH0_SECRET,
+  baseURL: AUTH0_AUDIENCE,
+  clientID: AUTH0_CLIENT_ID,
+  issuerBaseURL: AUTH0_BASE_URL,
+};
 
-// define the config object  
-
-  
 // auth router attaches /login, /logout, and /callback routes to the baseURL
-
+app.use(auth(config)); // this is when we're initializing our connection to OpenId Connect. This grants the user access to their OIDC.
 
 // create a GET / route handler that sends back Logged in or Logged out
 // req.isAuthenticated is provided from the auth router
-
+app.get("/", (req, res) => {
+  res.send(
+    req.oidc.isAuthenticated()
+      ? `<h2 style="text-align:center"> My Web App, Inc</h2>
+  <h2>Welcome, ${req.oidc.user.name}</h2>
+  <p>Username: ${req.oidc.user.nickname}</p>
+  <p>${req.oidc.user.email}</p>
+  <img src = "${req.oidc.user.picture} alt="${req.oidc.user.name}>"`
+      : "Logged out"
+  );
+});
 
 /* ************ END OIDC CODE ************ */
 
 // error handling middleware
 app.use((error, req, res, next) => {
-  console.error('SERVER ERROR: ', error);
-  if(res.statusCode < 400) res.status(500);
-  res.send({error: error.message, name: error.name, message: error.message});
+  console.error("SERVER ERROR: ", error);
+  if (res.statusCode < 400) res.status(500);
+  res.send({ error: error.message, name: error.name, message: error.message });
 });
 
 app.listen(PORT, () => {
   console.log(`Server is up at http://localhost:${PORT}`);
 });
-
